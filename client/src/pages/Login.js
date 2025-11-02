@@ -13,8 +13,7 @@ function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ Unified API Base URL
-  const API_BASE_URL =
+  const API_BASE =
     process.env.NODE_ENV === "production"
       ? process.env.REACT_APP_API_URL
       : "http://localhost:5000";
@@ -26,11 +25,10 @@ function Login() {
     if (err === "google-failed") setError("Google login failed. Please try again.");
   }, []);
 
-  const validateBITSEmail = (email) => {
-    return /@(pilani\.bits-pilani\.ac\.in|goa\.bits-pilani\.ac\.in|hyderabad\.bits-pilani\.ac\.in|dubai\.bits-pilani\.ac\.in|wilp\.bits-pilani\.ac\.in)$/.test(
+  const validateBITSEmail = (email) =>
+    /@(pilani\.bits-pilani\.ac\.in|goa\.bits-pilani\.ac\.in|hyderabad\.bits-pilani\.ac\.in|dubai\.bits-pilani\.ac\.in|wilp\.bits-pilani\.ac\.in)$/.test(
       email
     );
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,8 +43,7 @@ function Login() {
 
     try {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
-
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
@@ -57,7 +54,6 @@ function Login() {
       });
 
       const data = await response.json();
-
       if (data.success) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
@@ -65,7 +61,7 @@ function Login() {
       } else {
         setError(data.message || "Authentication failed.");
       }
-    } catch (error) {
+    } catch {
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
@@ -73,15 +69,136 @@ function Login() {
   };
 
   const googleLogin = () => {
-    window.location.href = `${API_BASE_URL}/api/auth/google`;
+    window.location.href = `${API_BASE}/api/auth/google`;
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
 
   return (
-    <div>Your same UI code continues exactly here...</div>
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-700 to-indigo-800 relative overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-blue-500/20 blur-3xl" />
+        <div className="absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-md mx-4">
+        <div className="text-center mb-8">
+          <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-2xl mb-4">
+            <span className="text-blue-900 font-bold text-2xl">BITS</span>
+          </div>
+          <h1 className="text-white text-4xl font-extrabold mb-2">EasyBills</h1>
+          <p className="text-blue-200 text-sm font-medium">
+            Faculty Reimbursement System
+          </p>
+        </div>
+
+        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20">
+
+          <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-xl">
+            <button
+              onClick={() => {
+                setIsLogin(true);
+                setError("");
+              }}
+              className={`flex-1 py-2.5 rounded-lg font-semibold transition-all ${
+                isLogin
+                  ? "bg-gradient-to-r from-blue-700 to-blue-600 text-white shadow-md"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              Login
+            </button>
+
+            <button
+              onClick={() => {
+                setIsLogin(false);
+                setError("");
+              }}
+              className={`flex-1 py-2.5 rounded-lg font-semibold transition-all ${
+                !isLogin
+                  ? "bg-gradient-to-r from-blue-700 to-blue-600 text-white shadow-md"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              Register
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && (
+              <input
+                type="text"
+                name="name"
+                placeholder="Full Name"
+                className="w-full px-4 py-3 rounded-xl border"
+                onChange={handleChange}
+                required
+              />
+            )}
+
+            <input
+              type="email"
+              name="email"
+              placeholder="BITS Email"
+              className="w-full px-4 py-3 rounded-xl border"
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
+
+            <input
+              type="password"
+              name="password"
+              placeholder="Password"
+              className="w-full px-4 py-3 rounded-xl border"
+              onChange={handleChange}
+              required
+            />
+
+            {!isLogin && (
+              <select
+                name="role"
+                className="w-full px-4 py-3 rounded-xl border"
+                value={formData.role}
+                onChange={handleChange}
+              >
+                <option value="faculty">Faculty</option>
+                <option value="accounts">Accounts Team</option>
+                <option value="admin">Admin</option>
+              </select>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-gradient-to-r from-blue-700 to-blue-600 text-white font-bold rounded-xl"
+            >
+              {loading ? "Processing..." : isLogin ? "Login" : "Register"}
+            </button>
+
+            <button
+              type="button"
+              onClick={googleLogin}
+              className="w-full flex items-center justify-center gap-3 py-3.5 bg-white border text-gray-700 rounded-xl"
+            >
+              <img
+                src="https://developers.google.com/identity/images/g-logo.png"
+                className="w-5 h-5"
+                alt="google"
+              />
+              Continue with Google
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
   );
 }
 
