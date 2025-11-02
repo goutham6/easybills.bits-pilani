@@ -13,22 +13,23 @@ function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ Check URL for Google Login errors
+  // ✅ Unified API Base URL
+  const API_BASE =
+    process.env.NODE_ENV === "production"
+      ? "https://easybills-bits-pilani.onrender.com"
+      : "http://localhost:5000";
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const err = params.get("error");
-
-    if (err === "non-bits") {
-      setError("Only official BITS Pilani email accounts are allowed.");
-    } else if (err === "google-failed") {
-      setError("Google login failed. Please try again.");
-    }
+    if (err === "non-bits") setError("Only official BITS Pilani email accounts are allowed.");
+    if (err === "google-failed") setError("Google login failed. Please try again.");
   }, []);
 
   const validateBITSEmail = (email) => {
-    const bitsEmailRegex =
-      /@(pilani\.bits-pilani\.ac\.in|goa\.bits-pilani\.ac\.in|hyderabad\.bits-pilani\.ac\.in|dubai\.bits-pilani\.ac\.in|wilp\.bits-pilani\.ac\.in)$/;
-    return bitsEmailRegex.test(email);
+    return /@(pilani\.bits-pilani\.ac\.in|goa\.bits-pilani\.ac\.in|hyderabad\.bits-pilani\.ac\.in|dubai\.bits-pilani\.ac\.in|wilp\.bits-pilani\.ac\.in)$/.test(
+      email
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -44,20 +45,16 @@ function Login() {
 
     try {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
-      const response = await fetch(
-        process.env.NODE_ENV === "production"
-          ? `https://easybills-bits-pilani.onrender.com${endpoint}`
-          : `http://localhost:5000${endpoint}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            isLogin
-              ? { email: formData.email, password: formData.password }
-              : formData
-          ),
-        }
-      );
+
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          isLogin
+            ? { email: formData.email, password: formData.password }
+            : formData
+        ),
+      });
 
       const data = await response.json();
 
@@ -66,13 +63,9 @@ function Login() {
         localStorage.setItem("user", JSON.stringify(data.user));
         navigate("/dashboard");
       } else {
-        if (data.message === "Invalid credentials") {
-          setError("Incorrect email or password.");
-        } else {
-          setError(data.message || "Authentication failed.");
-        }
+        setError(data.message || "Authentication failed.");
       }
-    } catch (err) {
+    } catch (error) {
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
@@ -80,29 +73,22 @@ function Login() {
   };
 
   const googleLogin = () => {
-    const url =
-      process.env.NODE_ENV === "production"
-        ? "https://easybills-bits-pilani.onrender.com/api/auth/google"
-        : "http://localhost:5000/api/auth/google";
-
-    window.location.href = url;
+    window.location.href = `${API_BASE}/api/auth/google`;
   };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // ✅ UI Remains SAME Below This Line
+  // ✅ Your UI Below (unchanged)
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-700 to-indigo-800 relative overflow-hidden">
-      {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-blue-500/20 blur-3xl" />
         <div className="absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl" />
       </div>
 
       <div className="relative z-10 w-full max-w-md mx-4">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-2xl mb-4">
             <span className="text-blue-900 font-bold text-2xl">BITS</span>
@@ -116,7 +102,6 @@ function Login() {
           </p>
         </div>
 
-        {/* Card */}
         <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20">
           <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-xl">
             <button
@@ -160,7 +145,6 @@ function Login() {
                 name="name"
                 placeholder="Full Name"
                 className="w-full px-4 py-3 rounded-xl border border-gray-300"
-                value={formData.name}
                 onChange={handleChange}
                 required
               />
@@ -181,7 +165,6 @@ function Login() {
               name="password"
               placeholder="Password"
               className="w-full px-4 py-3 rounded-xl border border-gray-300"
-              value={formData.password}
               onChange={handleChange}
               required
             />
@@ -189,7 +172,7 @@ function Login() {
             {!isLogin && (
               <select
                 name="role"
-                className="w-full px-4 py-3 rounded-xl border-gray-300 border"
+                className="w-full px-4 py-3 rounded-xl border border-gray-300"
                 value={formData.role}
                 onChange={handleChange}
               >
@@ -207,7 +190,6 @@ function Login() {
               {loading ? "Processing..." : isLogin ? "Login" : "Register"}
             </button>
 
-            {/* ✅ Google Button */}
             <button
               type="button"
               onClick={googleLogin}

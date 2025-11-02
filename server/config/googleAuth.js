@@ -7,20 +7,17 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL:
-        process.env.NODE_ENV === "production"
-          ? "https://easybills-bits-pilani.onrender.com/api/auth/google/callback"
-          : "http://localhost:5000/api/auth/google/callback",
+      // IMPORTANT: use env var so it matches EXACTLY what is configured in Google Cloud Console
+      callbackURL: process.env.GOOGLE_REDIRECT_URI,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        const email = profile.emails[0].value;
+        const email = profile?.emails?.[0]?.value;
 
         // Enforce BITS Email Only
         if (
-          !email.match(
-            /(pilani|goa|hyderabad|dubai|wilp)\.bits-pilani\.ac\.in$/
-          )
+          !email ||
+          !/(pilani|goa|hyderabad|dubai|wilp)\.bits-pilani\.ac\.in$/.test(email)
         ) {
           return done(null, false, { message: "Not a BITS institutional email" });
         }
@@ -33,7 +30,7 @@ passport.use(
             name: profile.displayName,
             email,
             role: "faculty", // default role
-            password: "GOOGLE_LOGIN"
+            password: "GOOGLE_LOGIN",
           });
         }
 
