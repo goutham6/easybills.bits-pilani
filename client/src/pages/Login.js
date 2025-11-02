@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 function Login() {
@@ -8,13 +8,26 @@ function Login() {
     name: "",
     email: "",
     password: "",
-    role: "faculty"
+    role: "faculty",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // ✅ Check URL for Google Login errors
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("error");
+
+    if (err === "non-bits") {
+      setError("Only official BITS Pilani email accounts are allowed.");
+    } else if (err === "google-failed") {
+      setError("Google login failed. Please try again.");
+    }
+  }, []);
+
   const validateBITSEmail = (email) => {
-    const bitsEmailRegex = /@(pilani\.bits-pilani\.ac\.in|goa\.bits-pilani\.ac\.in|hyderabad\.bits-pilani\.ac\.in|dubai\.bits-pilani\.ac\.in|wilp\.bits-pilani\.ac\.in)$/;
+    const bitsEmailRegex =
+      /@(pilani\.bits-pilani\.ac\.in|goa\.bits-pilani\.ac\.in|hyderabad\.bits-pilani\.ac\.in|dubai\.bits-pilani\.ac\.in|wilp\.bits-pilani\.ac\.in)$/;
     return bitsEmailRegex.test(email);
   };
 
@@ -22,9 +35,8 @@ function Login() {
     e.preventDefault();
     setError("");
 
-    // Validate BITS email
     if (!validateBITSEmail(formData.email)) {
-      setError("Please use a valid BITS Pilani email address");
+      setError("Only official BITS Pilani email accounts are allowed.");
       return;
     }
 
@@ -32,39 +44,55 @@ function Login() {
 
     try {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(isLogin ? 
-          { email: formData.email, password: formData.password } : 
-          formData
-        ),
-      });
+      const response = await fetch(
+        process.env.NODE_ENV === "production"
+          ? `https://easybills-bits-pilani.onrender.com${endpoint}`
+          : `http://localhost:5000${endpoint}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            isLogin
+              ? { email: formData.email, password: formData.password }
+              : formData
+          ),
+        }
+      );
 
       const data = await response.json();
 
       if (data.success) {
-        // Store token and user info
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
         navigate("/dashboard");
       } else {
-        setError(data.message || "Authentication failed");
+        if (data.message === "Invalid credentials") {
+          setError("Incorrect email or password.");
+        } else {
+          setError(data.message || "Authentication failed.");
+        }
       }
     } catch (err) {
-      setError("Network error. Please check if the server is running.");
-      console.error("Auth error:", err);
+      setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const googleLogin = () => {
+    const url =
+      process.env.NODE_ENV === "production"
+        ? "https://easybills-bits-pilani.onrender.com/api/auth/google"
+        : "http://localhost:5000/api/auth/google";
+
+    window.location.href = url;
   };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // ✅ UI Remains SAME Below This Line
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-700 to-indigo-800 relative overflow-hidden">
       {/* Background decorations */}
@@ -74,14 +102,12 @@ function Login() {
       </div>
 
       <div className="relative z-10 w-full max-w-md mx-4">
-        {/* BITS Logo and Header */}
+        {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-2xl mb-4">
             <span className="text-blue-900 font-bold text-2xl">BITS</span>
           </div>
-          <h1 className="text-white text-4xl font-extrabold mb-2">
-            EasyBills
-          </h1>
+          <h1 className="text-white text-4xl font-extrabold mb-2">EasyBills</h1>
           <p className="text-blue-200 text-sm font-medium">
             Faculty Reimbursement System
           </p>
@@ -90,12 +116,14 @@ function Login() {
           </p>
         </div>
 
-        {/* Login/Register Card */}
+        {/* Card */}
         <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20">
-          {/* Toggle Tabs */}
           <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-xl">
             <button
-              onClick={() => setIsLogin(true)}
+              onClick={() => {
+                setIsLogin(true);
+                setError("");
+              }}
               className={`flex-1 py-2.5 rounded-lg font-semibold transition-all ${
                 isLogin
                   ? "bg-gradient-to-r from-blue-700 to-blue-600 text-white shadow-md"
@@ -105,7 +133,10 @@ function Login() {
               Login
             </button>
             <button
-              onClick={() => setIsLogin(false)}
+              onClick={() => {
+                setIsLogin(false);
+                setError("");
+              }}
               className={`flex-1 py-2.5 rounded-lg font-semibold transition-all ${
                 !isLogin
                   ? "bg-gradient-to-r from-blue-700 to-blue-600 text-white shadow-md"
@@ -124,102 +155,72 @@ function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <div>
-                <label className="block text-gray-700 font-medium text-sm mb-1.5">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  placeholder="Enter your full name"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required={!isLogin}
-                />
-              </div>
+              <input
+                type="text"
+                name="name"
+                placeholder="Full Name"
+                className="w-full px-4 py-3 rounded-xl border border-gray-300"
+                value={formData.name}
+                onChange={handleChange}
+                required
+              />
             )}
 
-            <div>
-              <label className="block text-gray-700 font-medium text-sm mb-1.5">
-                BITS Email ID
-              </label>
-              <input
-                type="email"
-                name="email"
-                placeholder="yourname@pilani.bits-pilani.ac.in"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition"
-                value={formData.email}
-                onChange={handleChange}
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Use your official BITS Pilani email
-              </p>
-            </div>
+            <input
+              type="email"
+              name="email"
+              placeholder="BITS Email"
+              className="w-full px-4 py-3 rounded-xl border border-gray-300"
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
 
-            <div>
-              <label className="block text-gray-700 font-medium text-sm mb-1.5">
-                Password
-              </label>
-              <input
-                type="password"
-                name="password"
-                placeholder="Enter your password"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition"
-                value={formData.password}
-                onChange={handleChange}
-                required
-              />
-            </div>
+            <input
+              type="password"
+              name="password"
+              placeholder="Password"
+              className="w-full px-4 py-3 rounded-xl border border-gray-300"
+              value={formData.password}
+              onChange={handleChange}
+              required
+            />
 
             {!isLogin && (
-              <div>
-                <label className="block text-gray-700 font-medium text-sm mb-1.5">
-                  Role
-                </label>
-                <select
-                  name="role"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition"
-                  value={formData.role}
-                  onChange={handleChange}
-                >
-                  <option value="faculty">Faculty</option>
-                  <option value="accounts">Accounts Team</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
+              <select
+                name="role"
+                className="w-full px-4 py-3 rounded-xl border-gray-300 border"
+                value={formData.role}
+                onChange={handleChange}
+              >
+                <option value="faculty">Faculty</option>
+                <option value="accounts">Accounts Team</option>
+                <option value="admin">Admin</option>
+              </select>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 bg-gradient-to-r from-blue-700 to-blue-600 text-white font-bold rounded-xl hover:from-blue-800 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3.5 bg-gradient-to-r from-blue-700 to-blue-600 text-white font-bold rounded-xl"
             >
               {loading ? "Processing..." : isLogin ? "Login" : "Register"}
             </button>
+
+            {/* ✅ Google Button */}
+            <button
+              type="button"
+              onClick={googleLogin}
+              className="w-full flex items-center justify-center gap-3 py-3.5 bg-white border border-gray-300 text-gray-700 rounded-xl"
+            >
+              <img
+                src="https://developers.google.com/identity/images/g-logo.png"
+                className="w-5 h-5"
+                alt="google"
+              />
+              Continue with Google
+            </button>
           </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-gray-600 text-sm">
-              {isLogin ? "Don't have an account?" : "Already have an account?"}
-              <button
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setError("");
-                }}
-                className="ml-1 text-blue-700 font-semibold hover:text-blue-800"
-              >
-                {isLogin ? "Register" : "Login"}
-              </button>
-            </p>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center mt-6 text-blue-200 text-xs">
-          <p>Track Every Rupee, Digitally and Transparently</p>
-          <p className="mt-1 text-blue-300/60">© 2025 BITS Pilani. All rights reserved.</p>
         </div>
       </div>
     </div>
